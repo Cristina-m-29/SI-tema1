@@ -64,6 +64,7 @@ try:
         else:
             bn = threading.Thread(target = handleBNode(client))
             bn.start()
+        print('BUnaaa')
 finally:
     km.join()
     bn.join()
