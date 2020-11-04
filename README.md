@@ -2,8 +2,8 @@
 Mititelu Ioana Cristina(3A1)
 
 ## Requirements 
-1.python 3.6+
-2.criptography librarry installed (pip install cryptography) 
+1. python 3.6+
+2. criptography librarry installed (pip install cryptography) 
 
 ## Pentru rularea programului va rog urmati urmatorii pasi:
 1. Mergeti la locatia in care ati descarcat codul
