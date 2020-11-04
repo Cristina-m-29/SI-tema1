@@ -12,29 +12,29 @@ k3 = b'cristinamititelu'
 initVec = b'mititelucristina' 
 
 try:
-    print('Connected...')
+    print('Connected...\n')
     while open:
         sock.sendall("Key manager".encode())
         mode = sock.recv(2048).decode()
 
         #Random generate keys and use AES with k3 on that key
         if mode == 'ECB':
-            print('Need KEY for ECB')
+            print('Need KEY for ECB \n')
             k1 = os.urandom(32)
-            print('Decrypted key: \n' + str(k1))
+            print('Generated key: ' + str(k1) + ' \n')
             cipher = Cipher(algorithms.AES(k3), modes.ECB())
             encrypthor = cipher.encryptor()
             code = encrypthor.update(k1) + encrypthor.finalize()
-            print('Encrypted key: \n' + str(code))
+            print('Encrypted key: ' + str(code) + ' \n')
             sock.sendall(code)
         elif mode == 'CFB':
-            print('Need KEY for CFB')
+            print('Need KEY for CFB \n')
             k2 = os.urandom(32)
-            print('Decrypted key: \n' + str(k2))
+            print('Generated key: ' + str(k2) +  '\n')
             cipher = Cipher(algorithms.AES(k3), modes.CFB(initVec))
             encrypthor = cipher.encryptor()
             code = encrypthor.update(k2) + encrypthor.finalize()
-            print('Encrypted key: \n' + str(code))
+            print('Encrypted key: ' + str(code) +  '\n')
             sock.sendall(code)
 
         open = False
