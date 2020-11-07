@@ -1,5 +1,6 @@
 import socket
 import os
+from functions import * 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -16,27 +17,16 @@ try:
     while open:
         sock.sendall("Key manager".encode())
         mode = sock.recv(2048).decode()
-
-        #Random generate keys and use AES with k3 on that key
-        if mode == 'ECB':
-            print('Need KEY for ECB \n')
-            k1 = os.urandom(32)
-            print('Generated key: ' + str(k1) + ' \n')
-            cipher = Cipher(algorithms.AES(k3), modes.ECB())
-            encrypthor = cipher.encryptor()
-            code = encrypthor.update(k1) + encrypthor.finalize()
-            print('Encrypted key: ' + str(code) + ' \n')
-            sock.sendall(code)
-        elif mode == 'CFB':
-            print('Need KEY for CFB \n')
-            k2 = os.urandom(32)
-            print('Generated key: ' + str(k2) +  '\n')
-            cipher = Cipher(algorithms.AES(k3), modes.CFB(initVec))
-            encrypthor = cipher.encryptor()
-            code = encrypthor.update(k2) + encrypthor.finalize()
-            print('Encrypted key: ' + str(code) +  '\n')
-            sock.sendall(code)
-
+        #Make new instance of CryptographyMethods class from functions.py
+        crypto = CryptographyMethods()
+        #Random generate key and call encryption function from crypto on that key
+        print('Need KEY for ' + mode + '\n')
+        key = os.urandom(32)
+        print('Generated key: ' + str(key) + ' \n')
+        encrypted_key = crypto.encrypt(k3, mode , key, initVec)
+        print('Encrypted key: ' + str(encrypted_key) +  '\n')
+        #Send encrypted key
+        sock.sendall(encrypted_key)
         open = False
 finally:
     print('Closing socket..')

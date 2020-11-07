@@ -1,5 +1,6 @@
 import socket
 import threading
+from functions import *
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 sock = socket.socket()
@@ -7,97 +8,66 @@ server_addres = ('localhost', 2900)
 threadCount = 0
 
 k3 = b'cristinamititelu'
-initVec = b'mititelucristina'
+init_vec = b'mititelucristina' 
 
-encryptedKey = 'none'
+encrypted_key = 'none'
 key = b''
 
-#Creare socket
+#Create socket
 try:
     sock.bind(server_addres)
 except socket.error as e:
     print(str(e), type(e))
 
-#Functie management conexiune nod A - KM
+#Handler function for node A - KM connection
 def handleKeyManager(connection):
-    global encryptedKey
-    connection.send(mode.encode())
-    encryptedKey = connection.recv(2048)
+    global encrypted_key
+    #Receive encrypted key
+    encrypted_key = connection.recv(2048)
     print('Encrypted key received \n')
     print('Waiting for sign from node B...\n')
     connection.close()
 
-#Functie management conexiune nod A - nod B
+#Handler function for node A - node B connection
 def handleBNode(connection): 
-    #Trimitere mod cripatre catre nodul B
-    connection.sendall(mode.encode())
-    
-    #Trimitere cheie criptata catre nodul B
-    while encryptedKey == 'none':
+    #Send encrypted key to node B
+    while encrypted_key == 'none':
         pass
-    connection.sendall(encryptedKey)
-
+    connection.sendall(encrypted_key)
+    #Make new instance of CryptographyMethods class from functions.py
+    crypto = CryptographyMethods()
     print('Waiting for key decryption...')
-    #Decriptare cheie primita de la KM
-    if mode == 'ECB':
-        cipher = Cipher(algorithms.AES(k3), modes.ECB())
-        decr = cipher.decryptor()
-        key = decr.update(encryptedKey) + decr.finalize()
-    elif mode == 'CFB':
-        cipher = Cipher(algorithms.AES(k3), modes.CFB(initVec))
-        decr = cipher.decryptor()
-        key = decr.update(encryptedKey) + decr.finalize()
+    #Decryption for key received from KM
+    key = crypto.decrypt(k3, mode, encrypted_key, init_vec)
     print('Decrypted key: ' + str(key) + '\n')
-
-    #Primire cheie decriptata de la nodul B
-    nodeBKey = connection.recv(2048)
-    #Trimitere cheie decriptata la nodul B
+    #Wait for decrypted key from node B
+    key_node_B = connection.recv(2048)
+    #Send node A decrypted key to node B
     connection.sendall(key)
-
-    #Verificare conexiune A si B
-    if key == nodeBKey:
-        print('Connection with node B DONE..Communication can begin')
-
-        #Read and break file in binary pieces
-        #Each piece has 512 bytes
-        filePieces = []
+    #Check node A - node B connection
+    if key == key_node_B:
+        message = connection.recv(2048).decode()
+        print('Message from node B: ' + message)
+        print('Connection with node B DONE..Communication can begin\n')
+        #Read and encrypt file
         with open("fisier.txt", "rb") as file:
-            while True:
-                piece = file.read(len(key))
-                if piece == b"":
-                    break
-                else: 
-                    if len(piece) < len(key):
-                        i = 0
-                        while i < len(key) - len(piece):
-                            piece += b' '
-                    filePieces.append(piece)
-
+            file = file.read()
+            encrypted_file = crypto.encrypt(key, mode, file, init_vec)
+        #Send number of file blocks to node B
+        nr_of_blocks = len(encrypted_file) / 16
+        if len(encrypted_file) % 16 != 0: nr_of_blocks += 1
+        connection.sendall(str(nr_of_blocks).encode())
+        #Send encrypted file by blocks
         print('Sedining file encrypted...')
-        #Trimitere nr de bucati din file catre nodul B
-        connection.sendall(str(len(filePieces)).encode())
-
-        #Criptare fiecare bucata si trimitere catre nodul B
-        if mode == 'ECB':
-            cipher = Cipher(algorithms.AES(key), modes.ECB())
-            encript = cipher.encryptor()
-            for piece in filePieces:
-                code = encript.update(piece)
-                connection.sendall(code)
-        elif mode == 'CFB':
-            cipher = Cipher(algorithms.AES(key), modes.CFB(initVec))
-            encript = cipher.encryptor()
-            decr = cipher.decryptor()
-            for piece in filePieces:
-                code = encript.update(piece)
-                print(decr.update(code))
-                connection.sendall(code)
+        for index in range(0, len(encrypted_file), 16):
+            encrypted_block = encrypted_file[index:index + 16]
+            connection.sendall(encrypted_block)
     print('File sent \n')
     print('Closing socket...')
     connection.close()
     
 
-#Cerere input de la user pentru modul de criptare
+#Ask for input from user for the encryption mode
 selection = input('Choose mode:\na = ECB \nb = CFB \n')
 while selection not in 'ab':
     selection = input('Choose mode:\na = ECB \nb = CFB \n')
@@ -108,22 +78,28 @@ else:
 print('Working in ' + mode + ' mode...\n')
 print('Waiting for encrypted key from KM..')
 
-#Asteptare conexiuni
+#Wait for connections
 sock.listen(2)
 
 #Handle new connection
 try:
     while threadCount < 2:
+        #Accept connections
         client, address = sock.accept()
-        nodeType = client.recv(2048).decode()
+        #Get node type
+        node_type = client.recv(2048).decode()
+        #Send encryption mode to connection
+        client.sendall(mode.encode())
         threadCount += 1
-        if nodeType == 'Key manager':
+        #Create new thread
+        if node_type == 'Key manager':
             km = threading.Thread(target = handleKeyManager(client))
             km.start()
         else:
             bn = threading.Thread(target = handleBNode(client))
             bn.start()
 finally:
+    #Wait for the threads executions
     km.join()
     bn.join()
     sock.close()
